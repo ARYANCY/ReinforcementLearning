@@ -1,6 +1,6 @@
 # How to Run — Ambient Backscatter Anti-Jamming RL
 
-Complete guide for installing, training, evaluating, and running the interactive GUI for this project.
+Complete guide for installing, training, evaluating, visualizing, and running the interactive GUI for this project.
 
 ---
 
@@ -11,7 +11,7 @@ Complete guide for installing, training, evaluating, and running the interactive
 | Python | 3.9+ | Everything |
 | NumPy | 1.22+ | Q-Learning, environment, GUI |
 | TensorFlow | 2.9+ | DQN training & GUI DQN policy |
-| matplotlib | 3.5+ | Plots, heatmaps (optional) |
+| matplotlib | 3.5+ | Plots, heatmaps (optional but recommended) |
 | pytest | any | Unit tests (optional) |
 
 ### Install (recommended)
@@ -46,91 +46,135 @@ ref2_rl/
 ├── deep_q_agent.py       # Deep Q-Network (DQN) agent
 ├── train.py              # CLI training entry point
 ├── evaluate.py           # Evaluate saved models + heatmap
+├── generate_plots.py     # Generate all 5 result plots
 ├── gui_app.py            # Interactive visualizer (recommended for demos)
 ├── utils.py              # Shared helpers
-├── results/              # Auto-created: models, logs, plots
+├── results/              # Auto-created with subdirectories
+│   ├── models/           # Saved Q-table and DQN model
+│   ├── logs/             # Training CSV logs
+│   └── plots/            # Generated PNG plots
+├── documentation/        # Project documentation
 └── tests/                # Unit tests (45 tests)
 ```
 
 ---
 
-## Quick Start (3 steps)
+## Quick Start (5 steps)
 
 ```bash
-# 1. Install
+# 1. Install dependencies
 pip install -r requirements.txt
 
-# 2. Train Q-Learning (~1–2 min)
-python train.py --agent q --eval
+# 2. Train Q-Learning for 10,000 steps (fast)
+python train.py --agent q --steps 10000 --eval
 
-# 3. Launch GUI
+# 3. Generate all result plots
+python generate_plots.py
+
+# 4. (Optional) Train DQN
+python train.py --agent dqn --steps 10000 --eval
+
+# 5. Launch interactive GUI
 python gui_app.py
 ```
 
 ---
 
-## CLI Training
+## CLI Training (`train.py`)
 
 ### Q-Learning (fast, tabular)
 
 Trains a 242×7 Q-table. Best for quick experiments and the Q-Table viewer in the GUI.
 
 ```bash
-python train.py --agent q --eval
+python train.py --agent q --eval --plot
 ```
 
 **Outputs:**
-- `results/q_table.npy` — trained Q-table
-- `results/q_learning_log.csv` — convergence log
+- `results/models/q_table.npy` — trained Q-table
+- `results/logs/q_learning_log.csv` — convergence log with step, reward, avg_reward, cumulative_reward
 
 ### Deep Q-Network (DQN)
 
 Neural-network approximation. Slower but scales to larger state spaces.
 
 ```bash
-python train.py --agent dqn --eval
+python train.py --agent dqn --eval --plot
 ```
 
 **Outputs:**
-- `results/dqn_model.keras` — saved Keras model
-- `results/dqn_log.csv` — convergence log
+- `results/models/dqn_model.keras` — saved Keras model
+- `results/logs/dqn_log.csv` — convergence log with step, reward, avg_reward, cumulative_reward
 
-### Train both + comparison plot
+### Train both + comparison plots
 
 ```bash
 python train.py --agent both --eval --plot
 ```
 
-**Additional output:** `results/convergence_plot.png`
-
-### CLI options
+### CLI options for `train.py`
 
 | Flag | Description | Default |
 |------|-------------|---------|
 | `--agent {q,dqn,both}` | Which agent to train | `q` |
 | `--eval` | Run greedy evaluation after training | off |
 | `--seed INT` | Random seed | `42` |
-| `--plot` | Plot reward curves (needs matplotlib) | off |
+| `--plot` | Generate all 5 plots after training (runs `generate_plots.py`) | off |
+| `--steps INT` | Custom number of training steps | None (uses value from `parameters.py`) |
 
 ---
 
-## Evaluation
+## Evaluation (`evaluate.py`)
 
 Evaluate a pre-trained agent without retraining:
 
 ```bash
-# Q-Learning
-python evaluate.py --agent q --steps 50000
-python evaluate.py --agent q --heatmap          # policy heatmap PNG
+# Q-Learning (50k steps)
+python evaluate.py --agent q --steps 50000 --heatmap
 
-# DQN
+# DQN (50k steps)
 python evaluate.py --agent dqn --steps 50000
 
 # Custom model path
 python evaluate.py --agent q --model path/to/q_table.npy
+
+# Generate all plots after evaluation
+python evaluate.py --agent q --plot
 ```
 
-**Heatmap output:** `results/policy_heatmap.png`
+**Heatmap output:** `results/plots/04_q_table_heatmap.png`
+
+### CLI options for `evaluate.py`
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--agent {q,dqn}` | Which agent to evaluate (required) | None |
+| `--model PATH` | Custom path to saved model | None (uses `results/models/` path) |
+| `--steps INT` | Number of evaluation steps | 50000 |
+| `--plot` | Generate all 5 result plots | off |
+| `--heatmap` | Generate Q-table heatmap (Q-Learning only) | off |
+
+---
+
+## Generate Plots (`generate_plots.py`)
+
+Generate all 5 result plots from existing training logs:
+
+```bash
+python generate_plots.py
+```
+
+This script will:
+1. Look for CSV logs in `results/logs/` (with fallback to `results/`)
+2. Look for Q-table in `results/models/` (with fallback to `results/`)
+3. Generate all 5 plots in `results/plots/`
+
+The 5 plots are:
+1. `01_reward_vs_training_steps.png`
+2. `02_average_throughput_vs_training_steps.png`
+3. `03_cumulative_reward_vs_training_steps.png`
+4. `04_q_table_heatmap.png`
+5. `05_action_selection_distribution.png`
 
 ---
 
@@ -156,7 +200,7 @@ python gui_app.py
 
 | Policy | Behaviour |
 |--------|-----------|
-| **Q-Learning** | Greedy action from saved Q-table (`results/q_table.npy`) |
+| **Q-Learning** | Greedy action from saved Q-table (`results/models/q_table.npy`) |
 | **Deep Q-Network (DQN)** | Greedy action from saved DQN model |
 | **Random** | Random feasible action each step |
 | **Manual** | You choose each action via buttons or keyboard |
@@ -212,8 +256,8 @@ Manual mode lets you step through the MDP one action at a time and understand wh
 
 | Button | Description |
 |--------|-------------|
-| **Train Q-Learning** | Trains 200k steps in background (~1 min), saves Q-table |
-| **Train DQN** | Trains 5k steps in background (requires TensorFlow) |
+| **Train Q-Learning** | Trains 200k steps in background (~1 min), saves Q-table to `results/models/` |
+| **Train DQN** | Trains 5k steps in background (requires TensorFlow), saves model to `results/models/` |
 | **View Q-Table** | Opens scrollable table of all Q-values (requires trained Q-table) |
 
 Progress appears in the status label (top-right).
@@ -223,7 +267,7 @@ Progress appears in the status label (top-right).
 ## Running Tests
 
 ```bash
-python -m pytest tests/ -v
+pytest tests/ -v
 ```
 
 | Test file | Covers |
@@ -271,12 +315,13 @@ dqn_training_steps = 1_000_000
 | `TensorFlow not found` | `pip install tensorflow` |
 | Tests fail on DQN | Install TensorFlow; DQN tests need it |
 | Manual buttons all grey | Select **Manual** policy; pause simulation |
+| Can't find model files | Check `results/models/` (not just `results/`) |
 
 ---
 
 ## Further Reading
 
 - [README.md](README.md) — project overview
-- [docs/setup_guide.md](docs/setup_guide.md) — detailed setup
-- [docs/mdp_formulation.md](docs/mdp_formulation.md) — MDP mathematics
-- [docs/algorithms.md](docs/algorithms.md) — Q-Learning & DQN theory
+- [documentation/results.md](documentation/results.md) — detailed results with plots
+- [documentation/Deep_Q_Network.md](documentation/Deep_Q_Network.md) — DQN documentation
+- [documentation/Q_Learning.md](documentation/Q_Learning.md) — Q-Learning documentation

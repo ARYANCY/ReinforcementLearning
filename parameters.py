@@ -1,24 +1,36 @@
+import os
+
+# Jammer Model Parameters
 jammer_idle_probability = 0.1
 jammer_power_probabilities = [0.6, 0.2, 0.2]
+
+# Data & Traffic Model Parameters
 packet_arrival_rate = 3
 data_queue_capacity = 10
 energy_queue_capacity = 10
+
+# Action & Reward Parameters
 active_transmit_packets_per_slot = 4
 active_transmit_energy_per_packet = 1
 backscatter_packets_delivered = [1, 2, 3]
 harvested_energy_per_power_level = [1, 2, 3]
 rate_adaptation_packets_delivered = [2, 1, 0]
 fixed_backscatter_rate = 3
+
 num_rate_adaptation_levels = len(jammer_power_probabilities)
 total_actions = 4 + num_rate_adaptation_levels
 total_jammer_states = 2
 total_states = total_jammer_states * (data_queue_capacity + 1) * (energy_queue_capacity + 1)
+
+# Q-Learning Hyperparameters
 q_learning_learning_rate = 0.1
 q_learning_discount_factor = 0.9
 initial_exploration_rate = 1.0
 minimum_exploration_rate = 0.01
 exploration_decay_rate = 0.9999
 q_learning_training_steps = 1000000
+
+# DQN Hyperparameters
 dqn_learning_rate = 0.001
 dqn_discount_factor = 0.9
 replay_buffer_capacity = 2000
@@ -26,6 +38,15 @@ training_batch_size = 32
 target_network_update_frequency = 100
 dqn_hidden_layer_sizes = [64, 64]
 dqn_training_steps = 1000000
+
+# Logging & Results Directory Structure
 logging_interval = 10000
 evaluation_window_size = 1000
+
 results_directory = "results"
+plots_directory = os.path.join(results_directory, "plots")
+logs_directory = os.path.join(results_directory, "logs")
+models_directory = os.path.join(results_directory, "models")
+
+# Compatibility aliases
+results_dir = results_directory

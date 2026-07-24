@@ -1,4 +1,3 @@
-
 import numpy as np
 import os
 import csv
@@ -31,6 +30,8 @@ from parameters import (
     dqn_hidden_layer_sizes,
     evaluation_window_size,
     results_directory,
+    logs_directory,
+    models_directory,
 )
 
 
@@ -81,9 +82,10 @@ class DQNAgent:
         self.target_network = build_q_network(total_states, total_actions, dqn_hidden_layer_sizes, dqn_learning_rate)
         self._synchronize_target_network()
         self.reward_history = []
-        self.average_reward_log = []
+        self.training_log = []  # Stores (step, reward, avg_reward, cumulative_reward)
         self.loss_log = []
-        os.makedirs(results_directory, exist_ok=True)
+        os.makedirs(models_directory, exist_ok=True)
+        os.makedirs(logs_directory, exist_ok=True)
 
     @staticmethod
     def _one_hot_encode_state(state_index: int) -> np.ndarray:
@@ -118,63 +120,85 @@ class DQNAgent:
     def _synchronize_target_network(self):
         self.target_network.set_weights(self.online_network.get_weights())
 
-    def train(self):
+    def train(self, steps: int = None):
+        total_training_steps = steps or parameters.dqn_training_steps
         state_index = self.environment.reset()
         state_vector = self._one_hot_encode_state(state_index)
         rolling_rewards = []
+        cumulative_reward = 0
+        self.reward_history = []
+        self.training_log = []
+
         print("=" * 60)
         print(" Deep Q-Network (DQN) Training")
-        print(f"  Steps         : {parameters.dqn_training_steps:,}")
+        print(f"  Steps         : {total_training_steps:,}")
         print(f"  Replay buffer : {replay_buffer_capacity:,}  Batch: {training_batch_size}")
         print(f"  Target sync   : every {target_network_update_frequency} steps")
         print(f"  Network       : {total_states} -> {dqn_hidden_layer_sizes} -> {total_actions}")
         print("=" * 60)
+
         start_time = time.time()
-        for step in range(1, parameters.dqn_training_steps + 1):
+        for step in range(1, total_training_steps + 1):
             possible_actions = self.environment.get_possible_actions()
             action = self.select_action(state_vector, possible_actions)
             reward, next_state_index = self.environment.perform_action(action)
             next_state_vector = self._one_hot_encode_state(next_state_index)
             done = False
+
             self.replay_buffer.add_experience(state_vector, action, reward, next_state_vector, done)
             loss = self.train_step()
+
             self.current_exploration_rate = max(minimum_exploration_rate, self.current_exploration_rate * exploration_decay_rate)
             if step % target_network_update_frequency == 0:
                 self._synchronize_target_network()
+
             rolling_rewards.append(reward)
             self.reward_history.append(reward)
+            cumulative_reward += reward
+
             if len(rolling_rewards) > evaluation_window_size:
                 rolling_rewards.pop(0)
+
             if loss > 0:
                 self.loss_log.append(loss)
-            if step % parameters.logging_interval == 0:
+
+            if step % parameters.logging_interval == 0 or step == total_training_steps:
                 average_reward = np.mean(rolling_rewards)
-                self.average_reward_log.append((step, average_reward))
+                self.training_log.append((step, reward, average_reward, cumulative_reward))
                 elapsed_time = time.time() - start_time
                 average_loss = np.mean(self.loss_log[-1000:]) if self.loss_log else 0
-                print(f"  Step {step:>8,} | epsilon={self.current_exploration_rate:.4f} | Avg reward: {average_reward:.4f} | Loss: {average_loss:.5f} | Elapsed: {elapsed_time:.1f}s")
+                if step % parameters.logging_interval == 0:
+                    print(f"  Step {step:>8,} | epsilon={self.current_exploration_rate:.4f} | Avg reward: {average_reward:.4f} | Loss: {average_loss:.5f} | Elapsed: {elapsed_time:.1f}s")
+
             state_index = next_state_index
             state_vector = next_state_vector
+
         self._save_training_results()
         print("\nDQN training complete.")
         print(f"  Final avg reward: {np.mean(self.reward_history[-evaluation_window_size:]):.4f}")
 
     def save_model(self, file_path: str = None):
-        file_path = file_path or os.path.join(results_directory, "dqn_model.keras")
+        file_path = file_path or os.path.join(models_directory, "dqn_model.keras")
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
         self.online_network.save(file_path)
         print(f"  DQN model saved -> {file_path}")
 
-    def load_model(self, file_path: str):
+    def load_model(self, file_path: str = None):
+        if file_path is None:
+            primary_path = os.path.join(models_directory, "dqn_model.keras")
+            fallback_path = os.path.join(results_directory, "dqn_model.keras")
+            file_path = primary_path if os.path.exists(primary_path) else fallback_path
         self.online_network = keras.models.load_model(file_path)
         self._synchronize_target_network()
         print(f"  DQN model loaded <- {file_path}")
 
     def _save_training_results(self):
-        csv_path = os.path.join(results_directory, "dqn_log.csv")
+        os.makedirs(logs_directory, exist_ok=True)
+        csv_path = os.path.join(logs_directory, "dqn_log.csv")
         with open(csv_path, "w", newline="") as csv_file:
             csv_writer = csv.writer(csv_file)
-            csv_writer.writerow(["step", "avg_reward"])
-            csv_writer.writerows(self.average_reward_log)
+            csv_writer.writerow(["step", "reward", "avg_reward", "cumulative_reward"])
+            csv_writer.writerows(self.training_log)
         print(f"  Training log  -> {csv_path}")
         self.save_model()
 
@@ -184,7 +208,11 @@ class DQNAgent:
         evaluation_rewards = []
         for _ in range(num_evaluation_steps):
             possible_actions = self.environment.get_possible_actions()
-            action = self.select_action(state_vector, possible_actions)
+            q_values = self.online_network(state_vector[np.newaxis], training=False)[0].numpy()
+            mask = np.full(total_actions, -np.inf)
+            for action in possible_actions:
+                mask[action] = q_values[action]
+            action = int(np.argmax(mask))
             reward, next_state_index = self.environment.perform_action(action)
             evaluation_rewards.append(reward)
             state_vector = self._one_hot_encode_state(next_state_index)

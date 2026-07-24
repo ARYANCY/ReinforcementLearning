@@ -1,0 +1,4 @@
+step,reward,avg_reward,cumulative_reward
+100,0,0.78,78
+200,0,0.765,153
+300,1,0.8366666666666667,251

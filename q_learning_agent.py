@@ -1,4 +1,3 @@
-
 import numpy as np
 import os
 import csv
@@ -16,6 +15,8 @@ from parameters import (
     exploration_decay_rate,
     evaluation_window_size,
     results_directory,
+    logs_directory,
+    models_directory,
 )
 
 
@@ -25,8 +26,9 @@ class QLearningAgent:
         self.q_matrix = np.zeros((total_states, total_actions))
         self.current_exploration_rate = initial_exploration_rate
         self.reward_history = []
-        self.average_reward_log = []
-        os.makedirs(results_directory, exist_ok=True)
+        self.training_log = []  # Stores (step, reward, avg_reward, cumulative_reward)
+        os.makedirs(models_directory, exist_ok=True)
+        os.makedirs(logs_directory, exist_ok=True)
 
     def select_action(self, state_index: int, possible_actions: list) -> int:
         if np.random.random() < self.current_exploration_rate:
@@ -35,7 +37,7 @@ class QLearningAgent:
         return max(q_values, key=q_values.get)
 
     def update_q_matrix(self, state_index, action, reward, next_state_index, next_possible_actions):
-        best_next_q_value = max(self.q_matrix[next_state_index][action] for action in next_possible_actions)
+        best_next_q_value = max(self.q_matrix[next_state_index][a] for a in next_possible_actions)
         temporal_difference_target = reward + q_learning_discount_factor * best_next_q_value
         temporal_difference_error = temporal_difference_target - self.q_matrix[state_index][action]
         self.q_matrix[state_index][action] += q_learning_learning_rate * temporal_difference_error
@@ -43,51 +45,69 @@ class QLearningAgent:
     def decay_exploration_rate(self):
         self.current_exploration_rate = max(minimum_exploration_rate, self.current_exploration_rate * exploration_decay_rate)
 
-    def train(self):
+    def train(self, steps: int = None):
+        total_training_steps = steps or parameters.q_learning_training_steps
         state_index = self.environment.reset()
         rolling_rewards = []
+        cumulative_reward = 0
+        self.reward_history = []
+        self.training_log = []
+
         print("=" * 60)
         print(" Q-Learning Training")
-        print(f"  Steps     : {parameters.q_learning_training_steps:,}")
+        print(f"  Steps     : {total_training_steps:,}")
         print(f"  lr={q_learning_learning_rate}  gamma={q_learning_discount_factor}  epsilon-start={initial_exploration_rate}")
         print("=" * 60)
+
         start_time = time.time()
-        for step in range(1, parameters.q_learning_training_steps + 1):
+        for step in range(1, total_training_steps + 1):
             possible_actions = self.environment.get_possible_actions()
             action = self.select_action(state_index, possible_actions)
             reward, next_state_index = self.environment.perform_action(action)
             next_possible_actions = self.environment.get_possible_actions()
             self.update_q_matrix(state_index, action, reward, next_state_index, next_possible_actions)
             self.decay_exploration_rate()
+
             rolling_rewards.append(reward)
             self.reward_history.append(reward)
+            cumulative_reward += reward
+
             if len(rolling_rewards) > evaluation_window_size:
                 rolling_rewards.pop(0)
-            if step % parameters.logging_interval == 0:
+
+            if step % parameters.logging_interval == 0 or step == total_training_steps:
                 average_reward = np.mean(rolling_rewards)
-                self.average_reward_log.append((step, average_reward))
+                self.training_log.append((step, reward, average_reward, cumulative_reward))
                 elapsed_time = time.time() - start_time
-                print(f"  Step {step:>8,} | epsilon={self.current_exploration_rate:.4f} | Avg reward (last {evaluation_window_size}): {average_reward:.4f} | Elapsed: {elapsed_time:.1f}s")
+                if step % parameters.logging_interval == 0:
+                    print(f"  Step {step:>8,} | epsilon={self.current_exploration_rate:.4f} | Avg reward: {average_reward:.4f} | Elapsed: {elapsed_time:.1f}s")
             state_index = next_state_index
+
         self._save_training_results()
-        print("\nTraining complete.")
+        print("\nQ-Learning Training complete.")
         print(f"  Final avg reward: {np.mean(self.reward_history[-evaluation_window_size:]):.4f}")
 
     def save_q_table(self, file_path: str = None):
-        file_path = file_path or os.path.join(results_directory, "q_table.npy")
+        file_path = file_path or os.path.join(models_directory, "q_table.npy")
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
         np.save(file_path, self.q_matrix)
         print(f"  Q-table saved -> {file_path}")
 
-    def load_q_table(self, file_path: str):
+    def load_q_table(self, file_path: str = None):
+        if file_path is None:
+            primary_path = os.path.join(models_directory, "q_table.npy")
+            fallback_path = os.path.join(results_directory, "q_table.npy")
+            file_path = primary_path if os.path.exists(primary_path) else fallback_path
         self.q_matrix = np.load(file_path)
         print(f"  Q-table loaded <- {file_path}")
 
     def _save_training_results(self):
-        csv_path = os.path.join(results_directory, "q_learning_log.csv")
+        os.makedirs(logs_directory, exist_ok=True)
+        csv_path = os.path.join(logs_directory, "q_learning_log.csv")
         with open(csv_path, "w", newline="") as csv_file:
             csv_writer = csv.writer(csv_file)
-            csv_writer.writerow(["step", "avg_reward"])
-            csv_writer.writerows(self.average_reward_log)
+            csv_writer.writerow(["step", "reward", "avg_reward", "cumulative_reward"])
+            csv_writer.writerows(self.training_log)
         print(f"  Training log  -> {csv_path}")
         self.save_q_table()
 
@@ -96,7 +116,8 @@ class QLearningAgent:
         evaluation_rewards = []
         for _ in range(num_evaluation_steps):
             possible_actions = self.environment.get_possible_actions()
-            action = self.select_action(state_index, possible_actions)
+            q_values = {action: self.q_matrix[state_index][action] for action in possible_actions}
+            action = max(q_values, key=q_values.get)
             reward, next_state_index = self.environment.perform_action(action)
             evaluation_rewards.append(reward)
             state_index = next_state_index

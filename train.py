@@ -1,5 +1,9 @@
-
 import argparse
+import os
+
+from q_learning_agent import QLearningAgent
+from deep_q_agent import DQNAgent, TENSORFLOW_AVAILABLE
+from generate_plots import generate_all_plots
 
 
 def parse_command_line_arguments():
@@ -7,55 +11,28 @@ def parse_command_line_arguments():
     parser.add_argument("--agent", choices=["q", "dqn", "both"], default="q", help="Which agent to train (default: q)")
     parser.add_argument("--eval", action="store_true", help="Run greedy evaluation after training")
     parser.add_argument("--seed", type=int, default=42, help="Random seed (default: 42)")
-    parser.add_argument("--plot", action="store_true", help="Plot reward curves after training (requires matplotlib)")
+    parser.add_argument("--plot", action="store_true", help="Generate all 5 plots after training")
+    parser.add_argument("--steps", type=int, default=None, help="Custom training steps")
     return parser.parse_args()
 
 
 def run_q_learning(args):
-    from q_learning_agent import QLearningAgent
     agent = QLearningAgent(seed=args.seed)
-    agent.train()
+    agent.train(steps=args.steps)
     if args.eval:
         agent.evaluate_policy()
     return agent
 
 
 def run_dqn_agent(args):
-    from deep_q_agent import DQNAgent
+    if not TENSORFLOW_AVAILABLE:
+        print("[ERROR] TensorFlow is required to run DQN training.")
+        return None
     agent = DQNAgent(seed=args.seed)
-    agent.train()
+    agent.train(steps=args.steps)
     if args.eval:
         agent.evaluate_policy()
     return agent
-
-
-def plot_convergence_results():
-    import os
-    import csv
-    import matplotlib.pyplot as plt
-    from parameters import results_directory
-    figure, axes = plt.subplots(figsize=(9, 5))
-    for filename, label, color in [("q_learning_log.csv", "Q-Learning", "steelblue"), ("dqn_log.csv", "DQN", "darkorange")]:
-        file_path = os.path.join(results_directory, filename)
-        if not os.path.exists(file_path):
-            continue
-        steps, rewards = [], []
-        with open(file_path) as csv_file:
-            csv_reader = csv.DictReader(csv_file)
-            for row in csv_reader:
-                steps.append(int(row["step"]))
-                rewards.append(float(row["avg_reward"]))
-        axes.plot(steps, rewards, label=label, color=color, linewidth=2)
-    axes.set_xlabel("Training Steps", fontsize=12)
-    axes.set_ylabel("Average Throughput (packets/slot)", fontsize=12)
-    axes.set_title("Ambient Backscatter Anti-Jamming — RL Convergence", fontsize=13)
-    axes.legend(fontsize=11)
-    axes.grid(True, alpha=0.35)
-    figure.tight_layout()
-    output_file_path = os.path.join(results_directory, "convergence_plot.png")
-    figure.savefig(output_file_path, dpi=150)
-    print(f"  Plot saved -> {output_file_path}")
-    plt.show()
 
 
 if __name__ == "__main__":
@@ -65,4 +42,4 @@ if __name__ == "__main__":
     if arguments.agent in ("dqn", "both"):
         run_dqn_agent(arguments)
     if arguments.plot:
-        plot_convergence_results()
+        generate_all_plots()

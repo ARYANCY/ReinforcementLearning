@@ -23,6 +23,7 @@ from parameters import (
     energy_queue_capacity,
     total_actions,
     results_directory,
+    models_directory,
     total_states,
     q_learning_training_steps,
     dqn_training_steps,
@@ -118,11 +119,11 @@ class AmbientJammingGUI:
         self.environment = Environment(seed=None)
 
         self.q_table = None
-        self.q_table_path = os.path.join(results_directory, "q_table.npy")
+        self.q_table_path = None
         self.load_q_table()
 
         self.dqn_model = None
-        self.dqn_model_path = os.path.join(results_directory, "dqn_model.keras")
+        self.dqn_model_path = None
         self.load_dqn_model()
 
         self.running = False
@@ -159,6 +160,10 @@ class AmbientJammingGUI:
         self.draw_scene()
 
     def load_q_table(self):
+        # Try models directory first, then results directory as fallback
+        primary_path = os.path.join(models_directory, "q_table.npy")
+        fallback_path = os.path.join(results_directory, "q_table.npy")
+        self.q_table_path = primary_path if os.path.exists(primary_path) else fallback_path
         if os.path.exists(self.q_table_path):
             try:
                 self.q_table = np.load(self.q_table_path)
@@ -166,6 +171,10 @@ class AmbientJammingGUI:
                 print(f"[GUI] Q-table load error: {error}")
 
     def load_dqn_model(self):
+        # Try models directory first, then results directory as fallback
+        primary_path = os.path.join(models_directory, "dqn_model.keras")
+        fallback_path = os.path.join(results_directory, "dqn_model.keras")
+        self.dqn_model_path = primary_path if os.path.exists(primary_path) else fallback_path
         if os.path.exists(self.dqn_model_path):
             try:
                 import tensorflow as tf
