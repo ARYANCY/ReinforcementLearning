@@ -26,7 +26,7 @@ class QLearningAgent:
         self.q_matrix = np.zeros((total_states, total_actions))
         self.current_exploration_rate = initial_exploration_rate
         self.reward_history = []
-        self.training_log = []  # Stores (step, reward, avg_reward, cumulative_reward)
+        self.training_log = []
         os.makedirs(models_directory, exist_ok=True)
         os.makedirs(logs_directory, exist_ok=True)
 

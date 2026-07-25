@@ -82,7 +82,7 @@ class DQNAgent:
         self.target_network = build_q_network(total_states, total_actions, dqn_hidden_layer_sizes, dqn_learning_rate)
         self._synchronize_target_network()
         self.reward_history = []
-        self.training_log = []  # Stores (step, reward, avg_reward, cumulative_reward)
+        self.training_log = []
         self.loss_log = []
         os.makedirs(models_directory, exist_ok=True)
         os.makedirs(logs_directory, exist_ok=True)

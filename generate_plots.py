@@ -43,7 +43,6 @@ def load_log_data(csv_filename: str):
 
 
 def generate_01_reward_vs_training_steps():
-    """01_reward_vs_training_steps.png"""
     os.makedirs(plots_directory, exist_ok=True)
     plt.style.use("seaborn-v0_8-whitegrid" if "seaborn-v0_8-whitegrid" in plt.style.available else "default")
     fig, ax = plt.subplots(figsize=(10, 5.5), dpi=150)
@@ -73,7 +72,6 @@ def generate_01_reward_vs_training_steps():
 
 
 def generate_02_average_throughput_vs_training_steps():
-    """02_average_throughput_vs_training_steps.png"""
     os.makedirs(plots_directory, exist_ok=True)
     plt.style.use("seaborn-v0_8-whitegrid" if "seaborn-v0_8-whitegrid" in plt.style.available else "default")
     fig, ax = plt.subplots(figsize=(10, 5.5), dpi=150)
@@ -100,7 +98,6 @@ def generate_02_average_throughput_vs_training_steps():
 
 
 def generate_03_cumulative_reward_vs_training_steps():
-    """03_cumulative_reward_vs_training_steps.png"""
     os.makedirs(plots_directory, exist_ok=True)
     plt.style.use("seaborn-v0_8-whitegrid" if "seaborn-v0_8-whitegrid" in plt.style.available else "default")
     fig, ax = plt.subplots(figsize=(10, 5.5), dpi=150)
@@ -127,7 +124,6 @@ def generate_03_cumulative_reward_vs_training_steps():
 
 
 def generate_04_q_table_heatmap(q_matrix=None):
-    """04_q_table_heatmap.png"""
     os.makedirs(plots_directory, exist_ok=True)
     q_table_path = get_existing_file_path("q_table.npy", models_directory, results_directory)
     if q_matrix is None:
@@ -168,7 +164,6 @@ def generate_04_q_table_heatmap(q_matrix=None):
 
 
 def generate_05_action_selection_distribution(actions_taken=None):
-    """05_action_selection_distribution.png"""
     os.makedirs(plots_directory, exist_ok=True)
     action_labels = ["Idle", "Active-TX", "Harvest", "Backscatter", "RA-0", "RA-1", "RA-2"]
     if actions_taken is None:

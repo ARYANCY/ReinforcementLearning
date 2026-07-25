@@ -160,7 +160,6 @@ class AmbientJammingGUI:
         self.draw_scene()
 
     def load_q_table(self):
-        # Try models directory first, then results directory as fallback
         primary_path = os.path.join(models_directory, "q_table.npy")
         fallback_path = os.path.join(results_directory, "q_table.npy")
         self.q_table_path = primary_path if os.path.exists(primary_path) else fallback_path
@@ -171,7 +170,6 @@ class AmbientJammingGUI:
                 print(f"[GUI] Q-table load error: {error}")
 
     def load_dqn_model(self):
-        # Try models directory first, then results directory as fallback
         primary_path = os.path.join(models_directory, "dqn_model.keras")
         fallback_path = os.path.join(results_directory, "dqn_model.keras")
         self.dqn_model_path = primary_path if os.path.exists(primary_path) else fallback_path
@@ -1218,4 +1216,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
