@@ -32,19 +32,36 @@ def evaluate_agent(agent, environment, number_of_steps: int):
         else:
             from deep_q_agent import DQNAgent
             state_vector = DQNAgent._one_hot_encode_state(state_index)
-            action = agent.select_action(state_vector, possible_actions)
+            q_values = agent.online_network(state_vector[np.newaxis], training=False)[0].numpy()
+            mask = np.full(len(q_values), -np.inf)
+            for possible_action in possible_actions:
+                mask[possible_action] = q_values[possible_action]
+            action = int(np.argmax(mask))
         reward, next_state_index = environment.perform_action(action)
         rewards.append(reward)
         actions_taken.append(action)
         state_index = next_state_index
-    average_reward = np.mean(rewards)
+    rewards_array = np.array(rewards, dtype=np.float64)
+    average_reward = float(np.mean(rewards_array))
+    std_reward = float(np.std(rewards_array))
+    min_reward = float(np.min(rewards_array))
+    max_reward = float(np.max(rewards_array))
+    confidence_level = 1.96
+    standard_error = std_reward / np.sqrt(number_of_steps)
+    confidence_interval_lower = average_reward - confidence_level * standard_error
+    confidence_interval_upper = average_reward + confidence_level * standard_error
+    total_delivered = int(np.sum(rewards_array))
     print(f"\nEvaluation ({number_of_steps:,} steps)")
-    print(f"  Average throughput : {average_reward:.4f} packets/slot")
+    print(f"  Average throughput      : {average_reward:.6f} packets/slot")
+    print(f"  Std deviation           : {std_reward:.6f}")
+    print(f"  Min / Max reward        : {min_reward:.0f} / {max_reward:.0f} packets")
+    print(f"  Total delivered packets : {total_delivered:,}")
+    print(f"  95% Confidence Interval : [{confidence_interval_lower:.6f}, {confidence_interval_upper:.6f}]")
     print(f"  Action distribution:")
     action_labels = ["Idle", "Active-TX", "Harvest", "Backscatter", "RA-0", "RA-1", "RA-2"]
     counts = np.bincount(actions_taken, minlength=total_actions)
     for action_index, (label, count) in enumerate(zip(action_labels, counts)):
-        print(f"    [{action_index}] {label:12s}: {count:7,}  ({100*count/number_of_steps:.1f}%)")
+        print(f"    [{action_index}] {label:12s}: {count:7,}  ({100*count/number_of_steps:.2f}%)")
     return average_reward, actions_taken
 
 

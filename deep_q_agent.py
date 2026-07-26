@@ -14,7 +14,7 @@ except ImportError:
     TENSORFLOW_AVAILABLE = False
     print("[WARNING] TensorFlow not found. DQN agent requires TensorFlow >= 2.x.")
 
-from environment import Environment
+from environment import Environment, decode_state
 import parameters
 from parameters import (
     total_states,
@@ -107,6 +107,20 @@ class DQNAgent:
             return 0.0
         states, actions, rewards, next_states, dones = self.replay_buffer.sample_batch(training_batch_size)
         next_q_values = self.target_network(next_states, training=False).numpy()
+        batch_size = len(next_states)
+        if not hasattr(self, "_temp_env"):
+            self._temp_env = Environment()
+        for batch_index in range(batch_size):
+            next_state_index = int(np.argmax(next_states[batch_index]))
+            jammer_state, data_queue_level, energy_queue_level = decode_state(next_state_index)
+            self._temp_env.jammer_state = jammer_state
+            self._temp_env.data_queue_level = data_queue_level
+            self._temp_env.energy_queue_level = energy_queue_level
+            next_possible = self._temp_env.get_possible_actions()
+            mask = np.full(total_actions, -np.inf)
+            for possible_action in next_possible:
+                mask[possible_action] = next_q_values[batch_index][possible_action]
+            next_q_values[batch_index] = mask
         targets = rewards + (1 - dones) * dqn_discount_factor * np.max(next_q_values, axis=1)
         with tf.GradientTape() as tape:
             q_predictions = self.online_network(states, training=True)
@@ -120,11 +134,12 @@ class DQNAgent:
     def _synchronize_target_network(self):
         self.target_network.set_weights(self.online_network.get_weights())
 
-    def train(self, steps: int = None):
+    def train(self, steps: int = None, progress_callback=None):
         total_training_steps = steps or parameters.dqn_training_steps
         state_index = self.environment.reset()
         state_vector = self._one_hot_encode_state(state_index)
-        rolling_rewards = []
+        rolling_rewards = deque(maxlen=evaluation_window_size)
+        rolling_reward_sum = 0.0
         cumulative_reward = 0
         self.reward_history = []
         self.training_log = []
@@ -152,23 +167,26 @@ class DQNAgent:
             if step % target_network_update_frequency == 0:
                 self._synchronize_target_network()
 
+            if len(rolling_rewards) == evaluation_window_size:
+                rolling_reward_sum -= rolling_rewards[0]
             rolling_rewards.append(reward)
+            rolling_reward_sum += reward
             self.reward_history.append(reward)
             cumulative_reward += reward
-
-            if len(rolling_rewards) > evaluation_window_size:
-                rolling_rewards.pop(0)
 
             if loss > 0:
                 self.loss_log.append(loss)
 
+            average_reward = rolling_reward_sum / len(rolling_rewards)
+            self.training_log.append((step, reward, average_reward, cumulative_reward))
+
             if step % parameters.logging_interval == 0 or step == total_training_steps:
-                average_reward = np.mean(rolling_rewards)
-                self.training_log.append((step, reward, average_reward, cumulative_reward))
                 elapsed_time = time.time() - start_time
                 average_loss = np.mean(self.loss_log[-1000:]) if self.loss_log else 0
                 if step % parameters.logging_interval == 0:
                     print(f"  Step {step:>8,} | epsilon={self.current_exploration_rate:.4f} | Avg reward: {average_reward:.4f} | Loss: {average_loss:.5f} | Elapsed: {elapsed_time:.1f}s")
+                if progress_callback is not None:
+                    progress_callback(step, total_training_steps)
 
             state_index = next_state_index
             state_vector = next_state_vector

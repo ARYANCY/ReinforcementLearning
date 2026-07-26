@@ -14,6 +14,7 @@ from parameters import (
     plots_directory,
     logs_directory,
     models_directory,
+    evaluation_window_size,
 )
 
 
@@ -42,6 +43,63 @@ def load_log_data(csv_filename: str):
     return np.array(steps), np.array(rewards), np.array(avg_rewards), np.array(cum_rewards)
 
 
+def compute_short_moving_average(values: np.ndarray, window: int = 100) -> np.ndarray:
+    if len(values) == 0:
+        return values
+    window = max(1, min(window, len(values)))
+    result = np.zeros(len(values), dtype=float)
+    cumulative_sum = np.cumsum(np.insert(values, 0, 0))
+    for index in range(len(values)):
+        start_idx = max(0, index - window // 2)
+        end_idx = min(len(values), index + window // 2 + 1)
+        result[index] = (cumulative_sum[end_idx] - cumulative_sum[start_idx]) / (end_idx - start_idx)
+    return result
+
+
+def min_max_bin_arrays(*arrays, max_points: int = 4000):
+    if len(arrays) == 0:
+        return arrays
+    length = len(arrays[0])
+    if length <= max_points:
+        return arrays + (None, None)
+    bin_count = max_points // 2
+    bin_size = max(1, length // bin_count)
+    indices = np.arange(length)
+    x_values = arrays[0]
+    y_arrays = arrays[1:]
+
+    binned_x = []
+    binned_mins = [[] for _ in y_arrays]
+    binned_maxs = [[] for _ in y_arrays]
+    binned_means = [[] for _ in y_arrays]
+
+    for start in range(0, length, bin_size):
+        end = min(length, start + bin_size)
+        binned_x.append(np.mean(x_values[start:end]))
+        for y_idx, y_values in enumerate(y_arrays):
+            binned_mins[y_idx].append(np.min(y_values[start:end]))
+            binned_maxs[y_idx].append(np.max(y_values[start:end]))
+            binned_means[y_idx].append(np.mean(y_values[start:end]))
+
+    result = [np.array(binned_x)]
+    for y_idx in range(len(y_arrays)):
+        result.append(np.array(binned_means[y_idx]))
+    result.append([np.array(bm) for bm in binned_mins])
+    result.append([np.array(bM) for bM in binned_maxs])
+    return tuple(result)
+
+
+def subsample_arrays(*arrays, max_points: int = 2000):
+    if len(arrays) == 0:
+        return arrays
+    length = len(arrays[0])
+    if length <= max_points:
+        return arrays
+    step = max(1, length // max_points)
+    indices = np.arange(0, length, step)
+    return tuple(array[indices] for array in arrays)
+
+
 def generate_01_reward_vs_training_steps():
     os.makedirs(plots_directory, exist_ok=True)
     plt.style.use("seaborn-v0_8-whitegrid" if "seaborn-v0_8-whitegrid" in plt.style.available else "default")
@@ -51,18 +109,41 @@ def generate_01_reward_vs_training_steps():
     dqn_steps, dqn_rewards, dqn_avg, _ = load_log_data("dqn_log.csv")
 
     if q_steps is not None and len(q_steps) > 0:
-        ax.plot(q_steps, q_rewards, alpha=0.35, color="#1f77b4", linestyle="--", linewidth=1, label="Q-Learning (Sampled)")
-        ax.plot(q_steps, q_avg, color="#1f77b4", linewidth=2.5, label="Q-Learning (Smoothed)")
+        q_short_avg = compute_short_moving_average(q_rewards, window=100)
+        result = min_max_bin_arrays(q_steps, q_short_avg, q_avg, max_points=4000)
+        q_s_steps = result[0]
+        q_s_short = result[1]
+        q_s_avg = result[2]
+        q_mins = result[3]
+        q_maxs = result[4]
+        if q_mins is not None and q_maxs is not None:
+            ax.fill_between(q_s_steps, q_mins[0], q_maxs[0], alpha=0.15, color="#1f77b4", label="_nolegend_")
+            ax.plot(q_s_steps, q_mins[0], alpha=0.3, color="#1f77b4", linestyle=":", linewidth=0.75)
+            ax.plot(q_s_steps, q_maxs[0], alpha=0.3, color="#1f77b4", linestyle=":", linewidth=0.75)
+        ax.plot(q_s_steps, q_s_short, alpha=0.6, color="#1f77b4", linestyle="--", linewidth=1.2, label="Q-Learning (100-step avg)")
+        ax.plot(q_s_steps, q_s_avg, color="#1f77b4", linewidth=2.8, label=f"Q-Learning ({evaluation_window_size}-step avg)")
 
     if dqn_steps is not None and len(dqn_steps) > 0:
-        ax.plot(dqn_steps, dqn_rewards, alpha=0.35, color="#ff7f0e", linestyle="--", linewidth=1, label="DQN (Sampled)")
-        ax.plot(dqn_steps, dqn_avg, color="#ff7f0e", linewidth=2.5, label="DQN (Smoothed)")
+        dqn_short_avg = compute_short_moving_average(dqn_rewards, window=100)
+        result = min_max_bin_arrays(dqn_steps, dqn_short_avg, dqn_avg, max_points=4000)
+        d_s_steps = result[0]
+        d_s_short = result[1]
+        d_s_avg = result[2]
+        d_mins = result[3]
+        d_maxs = result[4]
+        if d_mins is not None and d_maxs is not None:
+            ax.fill_between(d_s_steps, d_mins[0], d_maxs[0], alpha=0.15, color="#ff7f0e", label="_nolegend_")
+            ax.plot(d_s_steps, d_mins[0], alpha=0.3, color="#ff7f0e", linestyle=":", linewidth=0.75)
+            ax.plot(d_s_steps, d_maxs[0], alpha=0.3, color="#ff7f0e", linestyle=":", linewidth=0.75)
+        ax.plot(d_s_steps, d_s_short, alpha=0.6, color="#ff7f0e", linestyle="--", linewidth=1.2, label="DQN (100-step avg)")
+        ax.plot(d_s_steps, d_s_avg, color="#ff7f0e", linewidth=2.8, label=f"DQN ({evaluation_window_size}-step avg)")
 
     ax.set_xlabel("Training Steps", fontsize=12, fontweight="bold")
-    ax.set_ylabel("Immediate Reward (packets/slot)", fontsize=12, fontweight="bold")
-    ax.set_title("01. Immediate Reward vs. Training Steps", fontsize=14, fontweight="bold", pad=12)
+    ax.set_ylabel("Throughput (packets/slot)", fontsize=12, fontweight="bold")
+    ax.set_title("01. Reward vs. Training Steps", fontsize=14, fontweight="bold", pad=12)
     ax.legend(fontsize=10, loc="lower right", frameon=True, facecolor="white", edgecolor="#cccccc")
     ax.grid(True, linestyle=":", alpha=0.6)
+    ax.set_ylim(bottom=0)
     fig.tight_layout()
 
     out_path = os.path.join(plots_directory, "01_reward_vs_training_steps.png")
@@ -80,15 +161,30 @@ def generate_02_average_throughput_vs_training_steps():
     dqn_steps, _, dqn_avg, _ = load_log_data("dqn_log.csv")
 
     if q_steps is not None and len(q_steps) > 0:
-        ax.plot(q_steps, q_avg, color="#007acc", linewidth=2.5, label="Tabular Q-Learning")
+        result = min_max_bin_arrays(q_steps, q_avg, max_points=4000)
+        q_s_steps = result[0]
+        q_s_avg = result[1]
+        q_mins = result[2]
+        q_maxs = result[3]
+        if q_mins is not None and q_maxs is not None:
+            ax.fill_between(q_s_steps, q_mins[0], q_maxs[0], alpha=0.2, color="#007acc", label="_nolegend_")
+        ax.plot(q_s_steps, q_s_avg, color="#007acc", linewidth=2.8, label="Tabular Q-Learning")
     if dqn_steps is not None and len(dqn_steps) > 0:
-        ax.plot(dqn_steps, dqn_avg, color="#7c3aed", linewidth=2.5, label="Deep Q-Network (DQN)")
+        result = min_max_bin_arrays(dqn_steps, dqn_avg, max_points=4000)
+        d_s_steps = result[0]
+        d_s_avg = result[1]
+        d_mins = result[2]
+        d_maxs = result[3]
+        if d_mins is not None and d_maxs is not None:
+            ax.fill_between(d_s_steps, d_mins[0], d_maxs[0], alpha=0.2, color="#7c3aed", label="_nolegend_")
+        ax.plot(d_s_steps, d_s_avg, color="#7c3aed", linewidth=2.8, label="Deep Q-Network (DQN)")
 
     ax.set_xlabel("Training Steps", fontsize=12, fontweight="bold")
     ax.set_ylabel("Average Throughput (packets/slot)", fontsize=12, fontweight="bold")
     ax.set_title("02. Average Throughput vs. Training Steps", fontsize=14, fontweight="bold", pad=12)
     ax.legend(fontsize=11, loc="lower right", frameon=True, facecolor="white", edgecolor="#cccccc")
     ax.grid(True, linestyle=":", alpha=0.6)
+    ax.set_ylim(bottom=0)
     fig.tight_layout()
 
     out_path = os.path.join(plots_directory, "02_average_throughput_vs_training_steps.png")
@@ -106,15 +202,18 @@ def generate_03_cumulative_reward_vs_training_steps():
     dqn_steps, _, _, dqn_cum = load_log_data("dqn_log.csv")
 
     if q_steps is not None and len(q_steps) > 0:
-        ax.plot(q_steps, q_cum, color="#2ecc71", linewidth=2.5, label="Q-Learning Cumulative Delivered")
+        q_s_steps, q_s_cum = subsample_arrays(q_steps, q_cum, max_points=4000)
+        ax.plot(q_s_steps, q_s_cum, color="#2ecc71", linewidth=2.8, label="Q-Learning Cumulative Delivered")
     if dqn_steps is not None and len(dqn_steps) > 0:
-        ax.plot(dqn_steps, dqn_cum, color="#e67e22", linewidth=2.5, label="DQN Cumulative Delivered")
+        d_s_steps, d_s_cum = subsample_arrays(dqn_steps, dqn_cum, max_points=4000)
+        ax.plot(d_s_steps, d_s_cum, color="#e67e22", linewidth=2.8, label="DQN Cumulative Delivered")
 
     ax.set_xlabel("Training Steps", fontsize=12, fontweight="bold")
     ax.set_ylabel("Cumulative Delivered Packets", fontsize=12, fontweight="bold")
     ax.set_title("03. Cumulative Reward vs. Training Steps", fontsize=14, fontweight="bold", pad=12)
     ax.legend(fontsize=11, loc="upper left", frameon=True, facecolor="white", edgecolor="#cccccc")
     ax.grid(True, linestyle=":", alpha=0.6)
+    ax.set_ylim(bottom=0)
     fig.tight_layout()
 
     out_path = os.path.join(plots_directory, "03_cumulative_reward_vs_training_steps.png")

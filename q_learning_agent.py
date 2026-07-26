@@ -2,6 +2,7 @@ import numpy as np
 import os
 import csv
 import time
+from collections import deque
 
 from environment import Environment
 import parameters
@@ -45,10 +46,11 @@ class QLearningAgent:
     def decay_exploration_rate(self):
         self.current_exploration_rate = max(minimum_exploration_rate, self.current_exploration_rate * exploration_decay_rate)
 
-    def train(self, steps: int = None):
+    def train(self, steps: int = None, progress_callback=None):
         total_training_steps = steps or parameters.q_learning_training_steps
         state_index = self.environment.reset()
-        rolling_rewards = []
+        rolling_rewards = deque(maxlen=evaluation_window_size)
+        rolling_reward_sum = 0.0
         cumulative_reward = 0
         self.reward_history = []
         self.training_log = []
@@ -68,19 +70,22 @@ class QLearningAgent:
             self.update_q_matrix(state_index, action, reward, next_state_index, next_possible_actions)
             self.decay_exploration_rate()
 
+            if len(rolling_rewards) == evaluation_window_size:
+                rolling_reward_sum -= rolling_rewards[0]
             rolling_rewards.append(reward)
+            rolling_reward_sum += reward
             self.reward_history.append(reward)
             cumulative_reward += reward
 
-            if len(rolling_rewards) > evaluation_window_size:
-                rolling_rewards.pop(0)
+            average_reward = rolling_reward_sum / len(rolling_rewards)
+            self.training_log.append((step, reward, average_reward, cumulative_reward))
 
             if step % parameters.logging_interval == 0 or step == total_training_steps:
-                average_reward = np.mean(rolling_rewards)
-                self.training_log.append((step, reward, average_reward, cumulative_reward))
                 elapsed_time = time.time() - start_time
                 if step % parameters.logging_interval == 0:
                     print(f"  Step {step:>8,} | epsilon={self.current_exploration_rate:.4f} | Avg reward: {average_reward:.4f} | Elapsed: {elapsed_time:.1f}s")
+                if progress_callback is not None:
+                    progress_callback(step, total_training_steps)
             state_index = next_state_index
 
         self._save_training_results()

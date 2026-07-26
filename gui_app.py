@@ -785,30 +785,26 @@ class AmbientJammingGUI:
 
             steps = 200000
             agent = QLearningAgent(seed=42)
-            state = agent.environment.reset()
             original_training_steps = parameters.q_learning_training_steps
             parameters.q_learning_training_steps = steps
-            chunk_size = 5000
+            original_log_interval = parameters.logging_interval
+            parameters.logging_interval = 5000
 
-            for step in range(1, steps + 1):
-                possible_actions = agent.environment.get_possible_actions()
-                action = agent.select_action(state, possible_actions)
-                reward, next_state = agent.environment.perform_action(action)
-                next_possible_actions = agent.environment.get_possible_actions()
-                agent.update_q_matrix(state, action, reward, next_state, next_possible_actions)
-                agent.decay_exploration_rate()
-                state = next_state
-                if step % chunk_size == 0:
-                    percentage = int(100 * step / steps)
-                    self.root.after(0, self.status_label.configure,
-                                    {"text": f"Q-Learning: {percentage}% ({step:,}/{steps:,})",
-                                     "fg": ACCENT_BLUE})
+            def progress_callback(step, total):
+                self.root.after(
+                    0, self.status_label.configure,
+                    {"text": f"Q-Learning: {int(100 * step / total)}% ({step:,}/{total:,})",
+                     "fg": ACCENT_BLUE}
+                )
 
-            agent.save_q_table()
+            agent.train(steps=steps, progress_callback=progress_callback)
+
+            parameters.logging_interval = original_log_interval
             self.q_table = agent.q_matrix
+            self.q_table_path = os.path.join(models_directory, "q_table.npy")
             parameters.q_learning_training_steps = original_training_steps
             self.root.after(0, self.on_training_done,
-                            "Q-Learning complete — Q-Table saved.", True)
+                            "Q-Learning complete — Q-Table & logs saved.", True)
         except Exception as error:
             self.root.after(0, self.on_training_done,
                             f"Q-Learning failed: {error}", False)
@@ -833,35 +829,26 @@ class AmbientJammingGUI:
 
             steps = 5000
             agent = DQNAgent(seed=42)
-            state_index = agent.environment.reset()
-            state_vector = agent._one_hot_encode_state(state_index)
             original_training_steps = parameters.dqn_training_steps
             parameters.dqn_training_steps = steps
-            chunk_size = 100
+            original_log_interval = parameters.logging_interval
+            parameters.logging_interval = 100
 
-            for step in range(1, steps + 1):
-                possible_actions = agent.environment.get_possible_actions()
-                action = agent.select_action(state_vector, possible_actions)
-                reward, next_state_index = agent.environment.perform_action(action)
-                next_state_vector = agent._one_hot_encode_state(next_state_index)
-                agent.replay_buffer.add_experience(state_vector, action, reward, next_state_vector, False)
-                agent.train_step()
-                agent.current_exploration_rate = max(parameters.minimum_exploration_rate,
-                                                    agent.current_exploration_rate * parameters.exploration_decay_rate)
-                if step % parameters.target_network_update_frequency == 0:
-                    agent._synchronize_target_network()
-                state_index, state_vector = next_state_index, next_state_vector
-                if step % chunk_size == 0:
-                    percentage = int(100 * step / steps)
-                    self.root.after(0, self.status_label.configure,
-                                    {"text": f"DQN: {percentage}% ({step}/{steps})",
-                                     "fg": ACCENT_VIOLET})
+            def progress_callback(step, total):
+                self.root.after(
+                    0, self.status_label.configure,
+                    {"text": f"DQN: {int(100 * step / total)}% ({step}/{total})",
+                     "fg": ACCENT_VIOLET}
+                )
 
-            agent.save_model()
+            agent.train(steps=steps, progress_callback=progress_callback)
+
+            parameters.logging_interval = original_log_interval
             self.dqn_model = agent.online_network
+            self.dqn_model_path = os.path.join(models_directory, "dqn_model.keras")
             parameters.dqn_training_steps = original_training_steps
             self.root.after(0, self.on_training_done,
-                            "DQN training complete — model saved.", True)
+                            "DQN training complete — model & logs saved.", True)
         except Exception as error:
             self.root.after(0, self.on_training_done,
                             f"DQN training failed: {error}", False)
