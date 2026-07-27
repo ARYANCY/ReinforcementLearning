@@ -35,32 +35,33 @@ from parameters import (
 )
 from utils import get_action_name
 
-BG_ROOT = "#f0f4f8"
-BG_CARD = "#ffffff"
-BG_CANVAS = "#f7fafc"
-BORDER = "#d1d9e6"
-MUTED = "#64748b"
-TEXT_DARK = "#0f172a"
-TEXT_LABEL = "#475569"
+BG_ROOT = "#F3F6FB"
+BG_CARD = "#FFFFFF"
+BG_CANVAS = "#F8FAFD"
+BORDER = "#D9E2EF"
+MUTED = "#64748B"
+TEXT_DARK = "#172033"
+TEXT_LABEL = "#52627A"
 
-ACCENT_BLUE = "#2563eb"
-ACCENT_GREEN = "#10b981"
-ACCENT_RED = "#ef4444"
-ACCENT_ORANGE = "#f97316"
-ACCENT_AMBER = "#f59e0b"
-ACCENT_VIOLET = "#8b5cf6"
+ACCENT_BLUE = "#3B82F6"
+ACCENT_GREEN = "#2DD4A5"
+ACCENT_RED = "#FB7185"
+ACCENT_ORANGE = "#FB923C"
+ACCENT_AMBER = "#FBBF24"
+ACCENT_VIOLET = "#A78BFA"
 
-JAMMER_IDLE_CLR = "#64748b"
-JAMMER_IDLE_GLOW = "#f1f5f9"
+JAMMER_IDLE_CLR = "#64748B"
+JAMMER_IDLE_GLOW = "#EEF2F8"
 
-BTN_BLUE = "#2563eb"
-BTN_GREEN = "#10b981"
-BTN_VIOLET = "#8b5cf6"
-BTN_GREY = "#475569"
-BTN_ORANGE = "#f97316"
-BTN_DANGER = "#ef4444"
-BTN_DISABLED = "#94a3b8"
-BTN_HOVER = "#1e40af"
+BTN_BLUE = "#2563EB"
+BTN_GREEN = "#059669"
+BTN_VIOLET = "#7C3AED"
+BTN_GREY = "#334155"
+BTN_ORANGE = "#EA580C"
+BTN_DANGER = "#E11D48"
+BTN_DISABLED = "#52627E"
+BTN_HOVER = "#60A5FA"
+PANEL_ALT = "#F8FAFD"
 
 MANUAL_ACTION_SPECS = [
     {"label": "Idle", "shortcut": "0", "color": BTN_GREY, "group": "idle",
@@ -287,7 +288,7 @@ class AmbientJammingGUI:
         segment_width = (width - 20 - total_gap) / capacity
         x = 10
         for i in range(capacity):
-            fill = color if i < value else "#e2e8f0"
+            fill = color if i < value else "#E4EAF3"
             canvas_widget.create_rectangle(x, 8, x + segment_width, height - 8,
                                            fill=fill, outline="", width=0)
             x += segment_width + segment_gap
@@ -305,7 +306,7 @@ class AmbientJammingGUI:
             ("Timesteps", "steps_label", "0"),
             ("Packets Delivered", "packets_label", "0"),
             ("Average Throughput", "average_label", "0.0000 packets/slot"),
-            ("Current State", "state_label", "(j=0, d=0, e=0)"),
+            ("Current State", "state_label", "Jammer: idle  |  Data: 0  |  Energy: 0"),
         ]
         for i, (title, attribute, initial) in enumerate(stats):
             cell = tk.Frame(bar, bg=BG_CARD)
@@ -324,18 +325,22 @@ class AmbientJammingGUI:
         console_frame = tk.Frame(self.root, bg=BG_ROOT)
         console_frame.pack(fill=tk.X, padx=32, pady=(0, 8))
 
-        tk.Label(console_frame, text="Simulation Log",
-                 font=("Segoe UI", 8, "bold"), fg=TEXT_LABEL, bg=BG_ROOT
-                 ).pack(anchor=tk.W, pady=(0, 4))
-
-        log_background = tk.Frame(console_frame, bg=BG_CARD, bd=0,
+        log_background = tk.Frame(console_frame, bg="#FFFFFF", bd=0,
                                   highlightthickness=1, highlightbackground=BORDER)
         log_background.pack(fill=tk.X)
 
-        self.log_text = tk.Text(log_background, bg=BG_CARD, fg=TEXT_DARK,
-                                font=("Consolas", 9), height=5,
+        terminal_bar = tk.Frame(log_background, bg="#EEF5FF", height=32)
+        terminal_bar.pack(fill=tk.X)
+        terminal_bar.pack_propagate(False)
+        tk.Label(terminal_bar, text="SYSTEM EVENT STREAM", font=("Consolas", 9, "bold"),
+                 fg="#1E4F91", bg="#EEF5FF").pack(side=tk.LEFT, padx=14, pady=8)
+        tk.Label(terminal_bar, text="●  LIVE", font=("Consolas", 9, "bold"),
+                 fg=ACCENT_GREEN, bg="#EEF5FF").pack(side=tk.RIGHT, padx=14, pady=8)
+
+        self.log_text = tk.Text(log_background, bg="#F8FAFD", fg="#334155",
+                                font=("Consolas", 9), height=7,
                                 state=tk.DISABLED, bd=0, wrap=tk.WORD,
-                                selectbackground="#dbeafe",
+                                selectbackground="#1E3A67",
                                 highlightthickness=0)
         self.log_text.pack(fill=tk.BOTH, side=tk.LEFT, expand=True, padx=14, pady=10)
 
@@ -345,7 +350,7 @@ class AmbientJammingGUI:
         self.log_text.tag_config("train", foreground=ACCENT_VIOLET, font=("Consolas", 9, "bold"))
 
         scrollbar = tk.Scrollbar(log_background, command=self.log_text.yview,
-                          bg=BG_CARD, troughcolor=BG_CARD, bd=0, width=14)
+                          bg="#EEF5FF", troughcolor="#F8FAFD", bd=0, width=14)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y, pady=10)
         self.log_text.configure(yscrollcommand=scrollbar.set)
 
@@ -424,37 +429,37 @@ class AmbientJammingGUI:
 
         tk.Frame(controls, bg=BORDER, height=1).pack(fill=tk.X, padx=18)
 
-        self.manual_panel = tk.Frame(controls, bg="#f8fafc",
+        self.manual_panel = tk.Frame(controls, bg=PANEL_ALT,
                                      highlightthickness=2, highlightbackground=BORDER)
         self.manual_panel.pack(fill=tk.X, padx=16, pady=(12, 16))
 
-        manual_header = tk.Frame(self.manual_panel, bg="#f8fafc")
+        manual_header = tk.Frame(self.manual_panel, bg=PANEL_ALT)
         manual_header.pack(fill=tk.X, padx=14, pady=(12, 8))
 
         tk.Label(manual_header, text="Manual Policy Controls",
-                 font=("Segoe UI", 9, "bold"), fg=TEXT_DARK, bg="#f8fafc"
+                 font=("Segoe UI", 9, "bold"), fg=TEXT_DARK, bg=PANEL_ALT
                  ).pack(side=tk.LEFT)
 
         self.manual_status_label = tk.Label(
             manual_header,
             text="Select \"Manual\" policy above to enable action buttons",
-            font=("Segoe UI", 9, "italic"), fg=TEXT_LABEL, bg="#f8fafc")
+            font=("Segoe UI", 9, "italic"), fg=TEXT_LABEL, bg=PANEL_ALT)
         self.manual_status_label.pack(side=tk.RIGHT)
 
-        idle_group = tk.Frame(self.manual_panel, bg="#f8fafc")
+        idle_group = tk.Frame(self.manual_panel, bg=PANEL_ALT)
         idle_group.pack(fill=tk.X, padx=14, pady=(0, 6))
         tk.Label(idle_group, text="Jammer IDLE", font=("Segoe UI", 8, "bold"),
-                 fg=BTN_GREY, bg="#f8fafc", width=14, anchor=tk.W
+                 fg=TEXT_LABEL, bg=PANEL_ALT, width=14, anchor=tk.W
                  ).pack(side=tk.LEFT, padx=(0, 8))
-        idle_btn_row = tk.Frame(idle_group, bg="#f8fafc")
+        idle_btn_row = tk.Frame(idle_group, bg=PANEL_ALT)
         idle_btn_row.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
-        active_group = tk.Frame(self.manual_panel, bg="#f8fafc")
+        active_group = tk.Frame(self.manual_panel, bg=PANEL_ALT)
         active_group.pack(fill=tk.X, padx=14, pady=(0, 12))
         tk.Label(active_group, text="Jammer ACTIVE", font=("Segoe UI", 8, "bold"),
-                 fg=ACCENT_RED, bg="#f8fafc", width=14, anchor=tk.W
+                 fg=ACCENT_RED, bg=PANEL_ALT, width=14, anchor=tk.W
                  ).pack(side=tk.LEFT, padx=(0, 8))
-        active_btn_row = tk.Frame(active_group, bg="#f8fafc")
+        active_btn_row = tk.Frame(active_group, bg=PANEL_ALT)
         active_btn_row.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
         self.manual_buttons = []
@@ -467,11 +472,11 @@ class AmbientJammingGUI:
                 command=lambda a=index: self.manual_action_trigger(a),
                 font=("Segoe UI", 9, "bold"),
                 relief="solid", bd=1, padx=14, pady=10,
-                bg="#f8fafc", fg="#334155", cursor="arrow",
+                bg=PANEL_ALT, fg=TEXT_LABEL, cursor="arrow",
                 activebackground=spec["color"],
                 activeforeground="white",
                 disabledforeground="#64748b",
-                highlightbackground="#cbd5e1",
+                highlightbackground=BORDER,
                 state=tk.DISABLED)
             
             def on_manual_enter(event, button=btn, spec_color=spec["color"]):
@@ -563,14 +568,14 @@ class AmbientJammingGUI:
         is_manual = self.is_manual_mode_active()
         self.refresh_manual_buttons(is_manual)
         if is_manual:
-            self.manual_panel.configure(bg="#eff6ff", highlightbackground=ACCENT_BLUE)
+            self.manual_panel.configure(bg="#EFF6FF", highlightbackground=ACCENT_BLUE)
             for widget in self.manual_panel.winfo_children():
                 try:
-                    widget.configure(bg="#eff6ff")
+                    widget.configure(bg="#EFF6FF")
                     for child in widget.winfo_children():
-                        child.configure(bg="#eff6ff")
+                        child.configure(bg="#EFF6FF")
                         for grandchild in child.winfo_children():
-                            grandchild.configure(bg="#eff6ff")
+                            grandchild.configure(bg="#EFF6FF")
                 except tk.TclError:
                     pass
             feasible = self.environment.get_possible_actions()
@@ -582,15 +587,15 @@ class AmbientJammingGUI:
                 self.log_message("[Manual] Policy active — use action buttons or keys 0–6 to step.",
                                  tag="header")
         elif self.running:
-            self.manual_panel.configure(bg="#f8fafc", highlightbackground=BORDER)
+            self.manual_panel.configure(bg=PANEL_ALT, highlightbackground=BORDER)
             self.manual_status_label.configure(
                 text="Simulation running — pause to use manual controls", fg=ACCENT_ORANGE)
         elif self.training_in_progress:
-            self.manual_panel.configure(bg="#f8fafc", highlightbackground=BORDER)
+            self.manual_panel.configure(bg=PANEL_ALT, highlightbackground=BORDER)
             self.manual_status_label.configure(
                 text="Training in progress — manual controls locked", fg=ACCENT_VIOLET)
         else:
-            self.manual_panel.configure(bg="#f8fafc", highlightbackground=BORDER)
+            self.manual_panel.configure(bg=PANEL_ALT, highlightbackground=BORDER)
             self.manual_status_label.configure(
                 text="Select \"Manual\" policy above to enable action buttons", fg=TEXT_LABEL)
         self._previous_policy = self.get_policy_abbreviation()
@@ -604,9 +609,9 @@ class AmbientJammingGUI:
             if enable and index in possible_actions:
                 btn.configure(state=tk.NORMAL, bg=spec["color"], fg="white", cursor="hand2", relief="solid", bd=1, highlightbackground=spec["color"])
             elif enable:
-                btn.configure(state=tk.DISABLED, bg="#e2e8f0", fg="#475569", cursor="not allowed", relief="solid", bd=1, highlightbackground="#cbd5e1")
+                btn.configure(state=tk.DISABLED, bg="#1B2940", fg=MUTED, cursor="not allowed", relief="solid", bd=1, highlightbackground=BORDER)
             else:
-                btn.configure(state=tk.DISABLED, bg="#f1f5f9", fg="#94a3b8", cursor="arrow", relief="solid", bd=1, highlightbackground="#cbd5e1")
+                btn.configure(state=tk.DISABLED, bg="#172238", fg=BTN_DISABLED, cursor="arrow", relief="solid", bd=1, highlightbackground=BORDER)
 
     def on_manual_keypress(self, event):
         if not self.is_manual_mode_active():
@@ -709,7 +714,9 @@ class AmbientJammingGUI:
         self.packets_label.configure(text=str(self.total_packets))
         self.average_label.configure(text=f"{average:.4f} packets/slot")
         self.state_label.configure(
-            text=f"(j={self.environment.jammer_state}, d={self.environment.data_queue_level}, e={self.environment.energy_queue_level})")
+            text=(f"Jammer: {'active' if self.environment.jammer_state else 'idle'}  |  "
+                  f"Data: {self.environment.data_queue_level}/{data_queue_capacity}  |  "
+                  f"Energy: {self.environment.energy_queue_level}/{energy_queue_capacity}"))
 
         self.draw_meter(self.data_meter, self.environment.data_queue_level, data_queue_capacity, ACCENT_BLUE)
         self.draw_meter(self.energy_meter, self.environment.energy_queue_level, energy_queue_capacity, ACCENT_GREEN)
@@ -721,9 +728,12 @@ class AmbientJammingGUI:
             tag = "warn"
         else:
             tag = None
-        self.log_message(f"[{self.total_steps:04d}] Jammer {jammer_string:6s} | "
-                  f"{get_action_name(action):14s} | +{reward} pkts | "
-                  f"d={self.environment.data_queue_level} e={self.environment.energy_queue_level}", tag=tag)
+        self.log_message(
+            f"> STEP {self.total_steps:04d}  |  JAMMER: {jammer_string:<6}  |  "
+            f"ACTION: {get_action_name(action):<14}  |  REWARD: +{reward} PACKETS\n"
+            f"  DATA QUEUE: {self.environment.data_queue_level}/{data_queue_capacity}  |  "
+            f"ENERGY RESERVE: {self.environment.energy_queue_level}/{energy_queue_capacity}",
+            tag=tag)
 
         self.draw_scene()
         self.schedule_animation(action, reward, pre_jammer)
@@ -746,7 +756,7 @@ class AmbientJammingGUI:
         self.steps_label.configure(text="0")
         self.packets_label.configure(text="0")
         self.average_label.configure(text="0.0000 packets/slot")
-        self.state_label.configure(text="(j=0, d=0, e=0)")
+        self.state_label.configure(text="Jammer: idle  |  Data: 0  |  Energy: 0")
         self.draw_meter(self.data_meter, 0, data_queue_capacity, ACCENT_BLUE)
         self.draw_meter(self.energy_meter, 0, energy_queue_capacity, ACCENT_GREEN)
         self.log_text.configure(state=tk.NORMAL)
@@ -989,32 +999,42 @@ Where:
         width = self.canvas.winfo_width() or 900
         height = self.canvas.winfo_height() or 500
 
-        step = 32
+        step = 40
         for grid_x in range(0, width, step):
-            for grid_y in range(0, height, step):
-                self.canvas.create_oval(grid_x-1, grid_y-1, grid_x+1, grid_y+1,
-                                        fill="#e2e8f0", outline="")
+            self.canvas.create_line(grid_x, 0, grid_x, height, fill="#E6EDF6", width=1)
+        for grid_y in range(0, height, step):
+            self.canvas.create_line(0, grid_y, width, grid_y, fill="#E6EDF6", width=1)
+        self.canvas.create_text(24, 22, text="LIVE RF TOPOLOGY", anchor=tk.W,
+                                font=("Segoe UI", 9, "bold"), fill=TEXT_LABEL)
+        self.canvas.create_text(width - 24, 22, text="ANTI-JAMMING LAB", anchor=tk.E,
+                                font=("Segoe UI", 8, "bold"), fill=MUTED)
 
         margin_x = width // 5
-        self.transmitter_position = (margin_x, height - 130)
-        self.receiver_position = (width - margin_x, height - 130)
-        self.jammer_position = (width // 2, 110)
+        # Keep the three roles readable even in a compact canvas.  The side
+        # panel already carries queue telemetry, so inline queues are hidden
+        # when vertical space is limited.
+        device_y = max(150, height - 108)
+        self.transmitter_position = (margin_x, device_y)
+        self.receiver_position = (width - margin_x, device_y)
+        self.jammer_position = (width // 2, max(78, min(96, height // 3)))
 
-        self.draw_link(self.transmitter_position, self.receiver_position, "#cbd5e1", 3, solid=True)
-        self.draw_link(self.jammer_position, self.transmitter_position, "#fecdd3", 2, solid=False)
-        self.draw_link(self.jammer_position, self.receiver_position, "#fecdd3", 2, solid=False)
+        self.draw_link(self.transmitter_position, self.receiver_position, "#1F5EA8", 5, solid=True)
+        self.draw_link(self.transmitter_position, self.receiver_position, "#60A5FA", 1, solid=True)
+        self.draw_link(self.jammer_position, self.transmitter_position, "#793046", 2, solid=False)
+        self.draw_link(self.jammer_position, self.receiver_position, "#793046", 2, solid=False)
 
         mid_x = (self.transmitter_position[0] + self.receiver_position[0]) // 2
         mid_y = (self.transmitter_position[1] + self.receiver_position[1]) // 2
         self.canvas.create_text(mid_x, mid_y - 18, text="DATA CHANNEL",
                                  font=("Segoe UI", 9, "bold"),
-                                 fill="#64748b")
+                                 fill=TEXT_LABEL)
 
         self.draw_jammer()
         self.draw_transmitter()
         self.draw_receiver()
 
-        self.draw_inline_queues()
+        if height >= 360:
+            self.draw_inline_queues()
 
     def draw_link(self, start, end, color, line_width, solid=True):
         dash = None if solid else (8, 5)
@@ -1026,73 +1046,82 @@ Where:
         center_x, center_y = self.jammer_position
         active = self.environment.jammer_state == 1
         rim_color = ACCENT_RED if active else JAMMER_IDLE_CLR
-        glow_color = "#fee2e2" if active else BG_CANVAS
+        glow_color = "#FFECEF" if active else JAMMER_IDLE_GLOW
         label_text = "JAMMER ● ACTIVE" if active else "JAMMER ○ IDLE"
 
-        halo_radius = 52
+        halo_radius = 46
         self.canvas.create_oval(center_x - halo_radius, center_y - halo_radius,
                                 center_x + halo_radius, center_y + halo_radius,
                                 fill=glow_color, outline=rim_color, width=1 if active else 0)
 
-        radius = 34
+        radius = 30
         points = []
         import math
         for i in range(6):
             angle = math.radians(60 * i - 30)
             points += [center_x + radius * math.cos(angle), center_y + radius * math.sin(angle)]
-        self.canvas.create_polygon(*points, fill="#f8fafc" if not active else "#fff1f2",
+        self.canvas.create_polygon(*points, fill="#F8FAFD" if not active else "#FFF1F2",
                                    outline=rim_color, width=3)
 
         self.canvas.create_text(center_x, center_y, text="⚡", font=("Segoe UI", 18),
                                  fill=rim_color)
 
         if active:
-            for wave_radius in [60, 78, 96]:
+            for wave_radius in [48, 61, 74]:
                 self.canvas.create_oval(center_x - wave_radius, center_y - wave_radius,
                                         center_x + wave_radius, center_y + wave_radius,
                                         outline=rim_color, width=1,
                                         dash=(5, 7))
 
-        self.canvas.create_text(center_x, center_y + 60, text=label_text,
-                                 font=("Segoe UI", 10, "bold"),
-                                 fill=rim_color)
+        plate_y = center_y + 42
+        self.canvas.create_rectangle(center_x - 72, plate_y, center_x + 72, plate_y + 36,
+                                     fill="#FFFFFF", outline="#F3B8C3" if active else BORDER, width=1)
+        self.canvas.create_text(center_x, plate_y + 11, text="JAMMER",
+                                font=("Segoe UI", 9, "bold"), fill=rim_color)
+        self.canvas.create_text(center_x, plate_y + 25,
+                                text="ACTIVE INTERFERENCE" if active else "STANDBY",
+                                font=("Segoe UI", 8, "bold"), fill=TEXT_LABEL)
 
     def draw_transmitter(self):
         center_x, center_y = self.transmitter_position
-        self.canvas.create_oval(center_x - 44, center_y - 44, center_x + 44, center_y + 44,
-                                fill="#dbeafe", outline=ACCENT_BLUE, width=2)
-        self.canvas.create_line(center_x, center_y - 32, center_x, center_y + 24,
-                                fill=ACCENT_BLUE, width=4)
-        self.canvas.create_line(center_x - 16, center_y - 12, center_x + 16, center_y - 12,
-                                fill=ACCENT_BLUE, width=3)
-        self.canvas.create_line(center_x - 10, center_y + 6, center_x + 10, center_y + 6,
-                                fill=ACCENT_BLUE, width=3)
-        self.canvas.create_oval(center_x - 6, center_y - 38, center_x + 6, center_y - 26,
-                                fill=ACCENT_BLUE, outline="white", width=2)
-        self.canvas.create_rectangle(center_x - 14, center_y + 22, center_x + 14, center_y + 30,
-                                     fill=ACCENT_BLUE, outline="")
-        self.canvas.create_text(center_x, center_y + 52, text="TRANSMITTER (TX)",
-                                 font=("Segoe UI", 10, "bold"),
-                                 fill=ACCENT_BLUE)
+        self.canvas.create_oval(center_x - 42, center_y - 42, center_x + 42, center_y + 42,
+                                fill="#EAF3FF", outline="#BBD7FA", width=1)
+        self.canvas.create_oval(center_x - 32, center_y - 32, center_x + 32, center_y + 32,
+                                fill="#F5F9FF", outline=ACCENT_BLUE, width=2)
+        self.canvas.create_rectangle(center_x - 15, center_y - 16, center_x + 15, center_y + 20,
+                                     fill="#DCEBFF", outline=ACCENT_BLUE, width=2)
+        self.canvas.create_line(center_x, center_y - 31, center_x, center_y - 16, fill="#93C5FD", width=3)
+        self.canvas.create_line(center_x - 10, center_y - 24, center_x + 10, center_y - 24, fill="#93C5FD", width=2)
+        self.canvas.create_line(center_x - 9, center_y + 25, center_x + 9, center_y + 25, fill=ACCENT_BLUE, width=3)
+        self.canvas.create_text(center_x, center_y + 2, text="TX", font=("Segoe UI", 10, "bold"), fill="#DBEAFE")
+        plate_y = center_y + 42
+        self.canvas.create_rectangle(center_x - 82, plate_y, center_x + 82, plate_y + 36,
+                                     fill="#FFFFFF", outline="#BBD7FA", width=1)
+        self.canvas.create_text(center_x, plate_y + 11, text="TRANSMITTER  (TX)",
+                                font=("Segoe UI", 9, "bold"), fill=ACCENT_BLUE)
+        self.canvas.create_text(center_x, plate_y + 25, text="DATA SOURCE",
+                                font=("Segoe UI", 8, "bold"), fill=TEXT_LABEL)
 
     def draw_receiver(self):
         center_x, center_y = self.receiver_position
-        self.canvas.create_oval(center_x - 44, center_y - 44, center_x + 44, center_y + 44,
-                                fill="#d1fae5", outline=ACCENT_GREEN, width=2)
-        self.canvas.create_arc(center_x - 34, center_y - 34, center_x + 14, center_y + 34,
-                               start=300, extent=120,
-                               style=tk.ARC, outline=ACCENT_GREEN, width=4)
-        self.canvas.create_line(center_x - 8, center_y, center_x + 20, center_y - 14,
-                                fill=ACCENT_GREEN, width=3)
-        self.canvas.create_oval(center_x + 17, center_y - 18, center_x + 25, center_y - 10,
-                                fill=ACCENT_GREEN, outline="white", width=2)
-        self.canvas.create_line(center_x - 8, center_y, center_x - 8, center_y + 26,
-                                fill=ACCENT_GREEN, width=3)
-        self.canvas.create_rectangle(center_x - 20, center_y + 24, center_x + 4, center_y + 30,
-                                     fill=ACCENT_GREEN, outline="")
-        self.canvas.create_text(center_x, center_y + 52, text="RECEIVER (RX)",
-                                 font=("Segoe UI", 10, "bold"),
-                                 fill=ACCENT_GREEN)
+        self.canvas.create_oval(center_x - 42, center_y - 42, center_x + 42, center_y + 42,
+                                fill="#E8FBF5", outline="#A9E8D5", width=1)
+        self.canvas.create_oval(center_x - 32, center_y - 32, center_x + 32, center_y + 32,
+                                fill="#F4FFFB", outline=ACCENT_GREEN, width=2)
+        self.canvas.create_arc(center_x - 27, center_y - 25, center_x + 26, center_y + 27,
+                               start=300, extent=125, style=tk.ARC, outline="#99F6E4", width=3)
+        self.canvas.create_arc(center_x - 35, center_y - 33, center_x + 34, center_y + 35,
+                               start=300, extent=125, style=tk.ARC, outline=ACCENT_GREEN, width=2)
+        self.canvas.create_line(center_x - 9, center_y + 6, center_x + 13, center_y - 7, fill=ACCENT_GREEN, width=3)
+        self.canvas.create_line(center_x - 9, center_y + 6, center_x - 9, center_y + 23, fill=ACCENT_GREEN, width=3)
+        self.canvas.create_text(center_x - 14, center_y - 9, text="RX", font=("Segoe UI", 10, "bold"), fill="#CCFBF1")
+        plate_y = center_y + 42
+        self.canvas.create_rectangle(center_x - 82, plate_y, center_x + 82, plate_y + 36,
+                                     fill="#FFFFFF", outline="#A9E8D5", width=1)
+        self.canvas.create_text(center_x, plate_y + 11, text="RECEIVER  (RX)",
+                                font=("Segoe UI", 9, "bold"), fill=ACCENT_GREEN)
+        self.canvas.create_text(center_x, plate_y + 25, text="PACKET DESTINATION",
+                                font=("Segoe UI", 8, "bold"), fill=TEXT_LABEL)
 
     def draw_inline_queues(self):
         transmitter_x, transmitter_y = self.transmitter_position
@@ -1109,11 +1138,11 @@ Where:
                                      fill=color, anchor=tk.E)
             x0 = transmitter_x
             for i in range(capacity):
-                fill = color if i < value else "#e2e8f0"
+                fill = color if i < value else "#E4EAF3"
                 self.canvas.create_rectangle(
                     x0 + i * (segment_width + gap), base_y,
                     x0 + i * (segment_width + gap) + segment_width, base_y + segment_height,
-                    fill=fill, outline="#cbd5e1", width=0
+                    fill=fill, outline="#D9E2EF", width=0
                 )
             self.canvas.create_text(
                 x0 + capacity * (segment_width + gap) + 6, base_y + segment_height // 2,
