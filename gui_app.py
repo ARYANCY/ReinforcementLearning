@@ -136,6 +136,7 @@ class AmbientJammingGUI:
         self.last_reward = 0
         self.animation_after_id = None
         self._previous_policy = None
+        self.manual_keys_held = set()
 
         self.transmitter_position = (0, 0)
         self.receiver_position = (0, 0)
@@ -216,9 +217,12 @@ class AmbientJammingGUI:
 
         self.build_stats_bar()
 
-        self.build_console()
-
+        # Keep the manual-action buttons above the event stream.  On shorter
+        # displays the console may extend below the initial viewport, whereas
+        # the controls must remain reachable to drive the visual animation.
         self.build_controls()
+
+        self.build_console()
 
     def build_side_panel(self, parent):
         self.make_section_label(parent, "Jammer Status")
@@ -400,7 +404,8 @@ class AmbientJammingGUI:
         btn_row.pack()
         self.play_button = self.make_button(btn_row, "▶ Run", self.toggle_run, BTN_BLUE, width=10)
         self.play_button.pack(side=tk.LEFT, padx=3)
-        self.make_button(btn_row, "⟳ Step", self.simulation_step, BTN_GREY, width=10).pack(side=tk.LEFT, padx=3)
+        self.step_button = self.make_button(btn_row, "⟳ Step", self.simulation_step, BTN_GREY, width=10)
+        self.step_button.pack(side=tk.LEFT, padx=3)
         self.make_button(btn_row, "⟲ Reset", self.reset_simulation, BTN_GREY, width=10).pack(side=tk.LEFT, padx=3)
 
         tk.Frame(top_row, bg=BORDER, width=1).pack(side=tk.LEFT, fill=tk.Y,
@@ -495,7 +500,11 @@ class AmbientJammingGUI:
             self.manual_buttons.append(btn)
             self.manual_tooltips.append(tooltip)
 
-        self.root.bind("<Key>", self.on_manual_keypress)
+        # Global bindings work even when the policy selector or another
+        # control has focus.  Key-release tracking makes every press a single
+        # manual step instead of repeating while the key is held down.
+        self.root.bind_all("<KeyPress>", self.on_manual_keypress, add="+")
+        self.root.bind_all("<KeyRelease>", self.on_manual_keyrelease, add="+")
 
         self.policy_mode.trace_add("write", lambda *args: self.on_policy_change())
 
@@ -565,8 +574,12 @@ class AmbientJammingGUI:
     def on_policy_change(self, event=None):
         if not hasattr(self, 'manual_buttons'):
             return
+        # Manual mode is action-driven; stop an automatic loop if the user
+        # changes policy while it is running.
+        if self.get_policy_abbreviation() == "manual" and self.running:
+            self.running = False
+            self.play_button.configure(text="▶ Run", bg=BTN_BLUE)
         is_manual = self.is_manual_mode_active()
-        self.refresh_manual_buttons(is_manual)
         if is_manual:
             self.manual_panel.configure(bg="#EFF6FF", highlightbackground=ACCENT_BLUE)
             for widget in self.manual_panel.winfo_children():
@@ -598,6 +611,13 @@ class AmbientJammingGUI:
             self.manual_panel.configure(bg=PANEL_ALT, highlightbackground=BORDER)
             self.manual_status_label.configure(
                 text="Select \"Manual\" policy above to enable action buttons", fg=TEXT_LABEL)
+        # Apply action colours and enabled/disabled state after the panel
+        # background refresh.  Otherwise that refresh overwrites the colours
+        # of the available action buttons and makes them look unavailable.
+        self.refresh_manual_buttons(is_manual)
+        if hasattr(self, "step_button"):
+            self.step_button.configure(state=tk.DISABLED if is_manual else tk.NORMAL)
+        self.play_button.configure(state=tk.DISABLED if is_manual else tk.NORMAL)
         self._previous_policy = self.get_policy_abbreviation()
 
     def refresh_manual_buttons(self, enable):
@@ -609,18 +629,30 @@ class AmbientJammingGUI:
             if enable and index in possible_actions:
                 btn.configure(state=tk.NORMAL, bg=spec["color"], fg="white", cursor="hand2", relief="solid", bd=1, highlightbackground=spec["color"])
             elif enable:
-                btn.configure(state=tk.DISABLED, bg="#1B2940", fg=MUTED, cursor="not allowed", relief="solid", bd=1, highlightbackground=BORDER)
+                # Tk cursors are platform-specific.  "not allowed" is a CSS
+                # cursor name and raises TclError on Windows, which prevented
+                # the rest of the manual-action controls from being refreshed.
+                btn.configure(state=tk.DISABLED, bg="#1B2940", fg=MUTED, cursor="arrow", relief="solid", bd=1, highlightbackground=BORDER)
             else:
                 btn.configure(state=tk.DISABLED, bg="#172238", fg=BTN_DISABLED, cursor="arrow", relief="solid", bd=1, highlightbackground=BORDER)
 
     def on_manual_keypress(self, event):
         if not self.is_manual_mode_active():
             return
-        key = event.char
+        key = event.keysym.removeprefix("KP_")
+        if key not in {spec["shortcut"] for spec in MANUAL_ACTION_SPECS}:
+            return
+        if key in self.manual_keys_held:
+            return "break"
+        self.manual_keys_held.add(key)
         for index, spec in enumerate(MANUAL_ACTION_SPECS):
             if key == spec["shortcut"]:
                 self.manual_action_trigger(index)
-                return
+                return "break"
+
+    def on_manual_keyrelease(self, event):
+        key = event.keysym.removeprefix("KP_")
+        self.manual_keys_held.discard(key)
 
     def toggle_run(self):
         if self.running:
@@ -631,6 +663,10 @@ class AmbientJammingGUI:
             if self.training_in_progress:
                 messagebox.showwarning("Training in Progress",
                                      "Wait for training to finish first.")
+                return
+            if self.get_policy_abbreviation() == "manual":
+                self.log_message("[Manual] Use the highlighted Manual Policy Controls to run an animation.",
+                                 tag="warn")
                 return
             self.running = True
             self.play_button.configure(text="⏸ Pause", bg=BTN_DANGER)
