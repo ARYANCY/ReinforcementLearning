@@ -37,12 +37,14 @@ class Environment:
         self.data_queue_level = 0
         self.energy_queue_level = 0
         self.current_power_level = None
+        self.last_packet_arrivals = 0
 
     def reset(self):
         self.jammer_state = 0
         self.data_queue_level = 0
         self.energy_queue_level = 0
         self.current_power_level = None
+        self.last_packet_arrivals = 0
         return encode_state(self.jammer_state, self.data_queue_level, self.energy_queue_level)
 
     def get_state(self) -> int:
@@ -67,6 +69,13 @@ class Environment:
         self._add_poisson_packet_arrivals()
         return reward, self.get_state()
 
+    def _active_transmit_packets(self) -> int:
+        """Return the packets that can be sent with both data and energy."""
+        energy_limited_packets = self.energy_queue_level // active_transmit_energy_per_packet
+        return min(active_transmit_packets_per_slot,
+                   self.data_queue_level,
+                   energy_limited_packets)
+
     def _sample_jammer_power_level(self) -> int:
         return int(self.random_generator.choice(len(jammer_power_probabilities), p=jammer_power_probabilities))
 
@@ -74,9 +83,10 @@ class Environment:
         if action == 0:
             return 0
         if action == 1:
-            if self.jammer_state == 1:
+            if (self.jammer_state == 1
+                    or self.energy_queue_level < active_transmit_energy_per_packet):
                 return 0
-            packets_sent = min(active_transmit_packets_per_slot, self.data_queue_level)
+            packets_sent = self._active_transmit_packets()
             return packets_sent
         power_level = self._sample_jammer_power_level()
         self.current_power_level = power_level
@@ -98,9 +108,9 @@ class Environment:
     def _update_queues(self, action: int):
         power_level = self.current_power_level
         if action == 1 and self.jammer_state == 0:
-            packets_sent = min(active_transmit_packets_per_slot, self.data_queue_level)
+            packets_sent = self._active_transmit_packets()
             self.data_queue_level -= packets_sent
-            self.energy_queue_level -= min(packets_sent * active_transmit_energy_per_packet, self.energy_queue_level)
+            self.energy_queue_level -= packets_sent * active_transmit_energy_per_packet
         elif action == 2 and self.jammer_state == 1 and power_level is not None:
             energy_gained = harvested_energy_per_power_level[power_level]
             self.energy_queue_level = min(self.energy_queue_level + energy_gained, energy_queue_capacity)
@@ -118,7 +128,9 @@ class Environment:
 
     def _add_poisson_packet_arrivals(self):
         packet_arrivals = self.random_generator.poisson(packet_arrival_rate)
-        self.data_queue_level = min(self.data_queue_level + packet_arrivals, data_queue_capacity)
+        accepted_arrivals = min(packet_arrivals, data_queue_capacity - self.data_queue_level)
+        self.data_queue_level += accepted_arrivals
+        self.last_packet_arrivals = accepted_arrivals
 
     def state_tuple(self):
         return (self.jammer_state, self.data_queue_level, self.energy_queue_level)

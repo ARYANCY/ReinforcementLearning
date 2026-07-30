@@ -184,7 +184,7 @@ class AmbientJammingGUI:
 
     def build_ui(self):
         header = tk.Frame(self.root, bg=BG_ROOT)
-        header.pack(fill=tk.X, padx=32, pady=(28, 0))
+        header.pack(fill=tk.X, padx=32, pady=(16, 0))
 
         tk.Label(header,
                  text="Ambient Backscatter Anti-Jamming",
@@ -196,10 +196,10 @@ class AmbientJammingGUI:
                  font=("Segoe UI", 13), fg=TEXT_LABEL, bg=BG_ROOT
                  ).pack(side=tk.LEFT, padx=(20, 0), pady=(6, 0))
 
-        tk.Frame(self.root, bg=ACCENT_BLUE, height=3).pack(fill=tk.X, padx=32, pady=(10, 0))
+        tk.Frame(self.root, bg=ACCENT_BLUE, height=3).pack(fill=tk.X, padx=32, pady=(6, 0))
 
         body = tk.Frame(self.root, bg=BG_ROOT)
-        body.pack(fill=tk.BOTH, expand=True, padx=32, pady=20)
+        body.pack(fill=tk.BOTH, expand=True, padx=32, pady=12)
 
         canvas_card = tk.Frame(body, bg=BG_CARD, bd=0, relief="flat",
                                highlightthickness=1, highlightbackground=BORDER)
@@ -304,7 +304,7 @@ class AmbientJammingGUI:
     def build_stats_bar(self):
         bar = tk.Frame(self.root, bg=BG_CARD, bd=0,
                        highlightthickness=1, highlightbackground=BORDER)
-        bar.pack(fill=tk.X, padx=32, pady=(0, 10))
+        bar.pack(fill=tk.X, padx=32, pady=(0, 6))
 
         stats = [
             ("Timesteps", "steps_label", "0"),
@@ -316,10 +316,10 @@ class AmbientJammingGUI:
             cell = tk.Frame(bar, bg=BG_CARD)
             cell.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=1)
             tk.Label(cell, text=title, font=("Segoe UI", 8, "bold"),
-                     fg=TEXT_LABEL, bg=BG_CARD).pack(pady=(10, 2))
+                     fg=TEXT_LABEL, bg=BG_CARD).pack(pady=(6, 2))
             label = tk.Label(cell, text=initial, font=("Segoe UI", 14, "bold"),
                            fg=TEXT_DARK, bg=BG_CARD)
-            label.pack(pady=(2, 10))
+            label.pack(pady=(2, 6))
             setattr(self, attribute, label)
             if i < len(stats) - 1:
                 tk.Frame(bar, bg=BORDER, width=1).pack(side=tk.LEFT, fill=tk.Y,
@@ -327,7 +327,7 @@ class AmbientJammingGUI:
 
     def build_console(self):
         console_frame = tk.Frame(self.root, bg=BG_ROOT)
-        console_frame.pack(fill=tk.X, padx=32, pady=(0, 8))
+        console_frame.pack(fill=tk.X, padx=32, pady=(0, 4))
 
         log_background = tk.Frame(console_frame, bg="#FFFFFF", bd=0,
                                   highlightthickness=1, highlightbackground=BORDER)
@@ -342,7 +342,7 @@ class AmbientJammingGUI:
                  fg=ACCENT_GREEN, bg="#EEF5FF").pack(side=tk.RIGHT, padx=14, pady=8)
 
         self.log_text = tk.Text(log_background, bg="#F8FAFD", fg="#334155",
-                                font=("Consolas", 9), height=7,
+                                font=("Consolas", 9), height=11,
                                 state=tk.DISABLED, bd=0, wrap=tk.WORD,
                                 selectbackground="#1E3A67",
                                 highlightthickness=0)
@@ -361,10 +361,10 @@ class AmbientJammingGUI:
     def build_controls(self):
         controls = tk.Frame(self.root, bg=BG_CARD, bd=0,
                           highlightthickness=1, highlightbackground=BORDER)
-        controls.pack(fill=tk.X, padx=32, pady=(0, 20))
+        controls.pack(fill=tk.X, padx=32, pady=(0, 8))
 
         top_row = tk.Frame(controls, bg=BG_CARD)
-        top_row.pack(fill=tk.X, padx=18, pady=(14, 10))
+        top_row.pack(fill=tk.X, padx=18, pady=(8, 6))
 
         policy_group = tk.Frame(top_row, bg=BG_CARD)
         policy_group.pack(side=tk.LEFT, padx=(0, 22))
@@ -436,14 +436,24 @@ class AmbientJammingGUI:
 
         self.manual_panel = tk.Frame(controls, bg=PANEL_ALT,
                                      highlightthickness=2, highlightbackground=BORDER)
-        self.manual_panel.pack(fill=tk.X, padx=16, pady=(12, 16))
+        self.manual_panel.pack(fill=tk.X, padx=16, pady=(5, 5))
 
         manual_header = tk.Frame(self.manual_panel, bg=PANEL_ALT)
-        manual_header.pack(fill=tk.X, padx=14, pady=(12, 8))
+        manual_header.pack(fill=tk.X, padx=14, pady=(5, 3))
 
         tk.Label(manual_header, text="Manual Policy Controls",
                  font=("Segoe UI", 9, "bold"), fg=TEXT_DARK, bg=PANEL_ALT
                  ).pack(side=tk.LEFT)
+
+        self.jammer_toggle_button = tk.Button(
+            manual_header, text="Toggle Jammer [J]",
+            command=self.toggle_manual_jammer,
+            font=("Segoe UI", 9, "bold"), relief="solid", bd=1,
+            padx=10, pady=4, bg=ACCENT_RED, fg="white", cursor="hand2",
+            activebackground="#E11D48", activeforeground="white",
+            disabledforeground=BTN_DISABLED, highlightbackground=ACCENT_RED,
+            state=tk.DISABLED)
+        self.jammer_toggle_button.pack(side=tk.LEFT, padx=(14, 0))
 
         self.manual_status_label = tk.Label(
             manual_header,
@@ -452,7 +462,7 @@ class AmbientJammingGUI:
         self.manual_status_label.pack(side=tk.RIGHT)
 
         idle_group = tk.Frame(self.manual_panel, bg=PANEL_ALT)
-        idle_group.pack(fill=tk.X, padx=14, pady=(0, 6))
+        idle_group.pack(fill=tk.X, padx=14, pady=(0, 3))
         tk.Label(idle_group, text="Jammer IDLE", font=("Segoe UI", 8, "bold"),
                  fg=TEXT_LABEL, bg=PANEL_ALT, width=14, anchor=tk.W
                  ).pack(side=tk.LEFT, padx=(0, 8))
@@ -460,7 +470,7 @@ class AmbientJammingGUI:
         idle_btn_row.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
         active_group = tk.Frame(self.manual_panel, bg=PANEL_ALT)
-        active_group.pack(fill=tk.X, padx=14, pady=(0, 12))
+        active_group.pack(fill=tk.X, padx=14, pady=(0, 5))
         tk.Label(active_group, text="Jammer ACTIVE", font=("Segoe UI", 8, "bold"),
                  fg=ACCENT_RED, bg=PANEL_ALT, width=14, anchor=tk.W
                  ).pack(side=tk.LEFT, padx=(0, 8))
@@ -476,7 +486,7 @@ class AmbientJammingGUI:
                 parent_row, text=btn_text,
                 command=lambda a=index: self.manual_action_trigger(a),
                 font=("Segoe UI", 9, "bold"),
-                relief="solid", bd=1, padx=14, pady=10,
+                relief="solid", bd=1, padx=14, pady=5,
                 bg=PANEL_ALT, fg=TEXT_LABEL, cursor="arrow",
                 activebackground=spec["color"],
                 activeforeground="white",
@@ -622,6 +632,14 @@ class AmbientJammingGUI:
 
     def refresh_manual_buttons(self, enable):
         possible_actions = self.environment.get_possible_actions() if enable else []
+        if hasattr(self, "jammer_toggle_button"):
+            self.jammer_toggle_button.configure(
+                state=tk.NORMAL if enable else tk.DISABLED,
+                cursor="hand2" if enable else "arrow",
+                bg=ACCENT_RED if enable else "#172238",
+                fg="white" if enable else BTN_DISABLED,
+                highlightbackground=ACCENT_RED if enable else BORDER,
+            )
         for index, btn in enumerate(self.manual_buttons):
             spec = MANUAL_ACTION_SPECS[index]
             reason = self.get_action_block_reason(index)
@@ -640,6 +658,12 @@ class AmbientJammingGUI:
         if not self.is_manual_mode_active():
             return
         key = event.keysym.removeprefix("KP_")
+        if key.lower() == "j":
+            if key in self.manual_keys_held:
+                return "break"
+            self.manual_keys_held.add(key)
+            self.toggle_manual_jammer()
+            return "break"
         if key not in {spec["shortcut"] for spec in MANUAL_ACTION_SPECS}:
             return
         if key in self.manual_keys_held:
@@ -653,6 +677,25 @@ class AmbientJammingGUI:
     def on_manual_keyrelease(self, event):
         key = event.keysym.removeprefix("KP_")
         self.manual_keys_held.discard(key)
+
+    def toggle_manual_jammer(self):
+        """Manually switch jammer state for an interactive visual demonstration."""
+        if not self.is_manual_mode_active():
+            return
+
+        self.environment.jammer_state = 1 - self.environment.jammer_state
+        self.environment.current_power_level = None
+        state_name = "ACTIVE" if self.environment.jammer_state else "IDLE"
+        self.jammer_label.configure(
+            text=f"● {state_name}",
+            fg=ACCENT_RED if self.environment.jammer_state else BTN_GREY)
+        self.state_label.configure(
+            text=(f"Jammer: {state_name.lower()}  |  "
+                  f"Data: {self.environment.data_queue_level}/{data_queue_capacity}  |  "
+                  f"Energy: {self.environment.energy_queue_level}/{energy_queue_capacity}"))
+        self.draw_scene()
+        self.log_message(f"[Manual] Jammer switched to {state_name}.", tag="header")
+        self.on_policy_change()
 
     def toggle_run(self):
         if self.running:
@@ -758,6 +801,9 @@ class AmbientJammingGUI:
         self.draw_meter(self.energy_meter, self.environment.energy_queue_level, energy_queue_capacity, ACCENT_GREEN)
 
         jammer_string = "ACTIVE" if pre_jammer == 1 else "IDLE"
+        sends_data = action in (1, 3, 4, 5, 6)
+        data_after_action = pre_data - reward if sends_data else pre_data
+        arrivals = self.environment.last_packet_arrivals
         if reward > 0:
             tag = "reward"
         elif reward == 0 and action != 0:
@@ -767,7 +813,8 @@ class AmbientJammingGUI:
         self.log_message(
             f"> STEP {self.total_steps:04d}  |  JAMMER: {jammer_string:<6}  |  "
             f"ACTION: {get_action_name(action):<14}  |  REWARD: +{reward} PACKETS\n"
-            f"  DATA QUEUE: {self.environment.data_queue_level}/{data_queue_capacity}  |  "
+            f"  DATA QUEUE: {pre_data} → {data_after_action} (action) → "
+            f"{self.environment.data_queue_level}/{data_queue_capacity} (+{arrivals} arrivals)  |  "
             f"ENERGY RESERVE: {self.environment.energy_queue_level}/{energy_queue_capacity}",
             tag=tag)
 
